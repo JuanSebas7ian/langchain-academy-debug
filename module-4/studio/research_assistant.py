@@ -6,14 +6,73 @@ from typing_extensions import TypedDict
 from langchain_community.document_loaders import WikipediaLoader
 from langchain_tavily import TavilySearch  # updated 1.0
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, get_buffer_string
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
 
 from langgraph.constants import Send
 from langgraph.graph import END, MessagesState, START, StateGraph
 
 ### LLM
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0) 
+# llm = ChatOpenAI(model="gpt-4o", temperature=0) 
+
+from dotenv import load_dotenv
+load_dotenv('/home/juansebas7ian/langchain-academy/.env')
+
+from langchain_aws import ChatBedrock
+
+# 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo)
+# Ideal para agentes que necesitan planificar pasos lógicos.
+# llm = ChatBedrock(
+#     model_id="us.deepseek.r1-v1:0",  # ID oficial validado
+#     region_name="us-east-1",
+#     model_kwargs={
+#         "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento
+#         "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT
+#         "top_p": 0.95,
+#     }
+# )
+
+
+# llm = ChatBedrock(
+#     model_id="us.deepseek.v3-v1:0", # Prueba este primero
+#     region_name="us-east-1",        # O us-west-2
+#     model_kwargs={
+#         "temperature": 0.7,
+#         "max_tokens": 4096
+#     }
+# )
+
+llm = ChatBedrock(
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us."
+    # model_id="cohere.command-r-plus-v1:0",
+    region_name="us-east-1",
+    model_kwargs={
+        "temperature": 0.5,
+        "max_tokens": 2048,
+        "top_p": 0.9,
+    }
+)
+
+
+# llm = ChatBedrock(
+#     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us."
+#     region_name="us-east-1",
+#     model_kwargs={
+#         "temperature": 0.5,
+#         "max_tokens": 2048,
+#         "top_p": 0.9,
+#     }
+# )
+
+# llm = ChatBedrock(
+#     model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us."
+#     region_name="us-east-1",
+#     model_kwargs={
+#         "temperature": 0.5,
+#         "max_tokens": 2048,
+#         "top_p": 0.9,
+#     }
+# )
 
 ### Schema 
 

@@ -6,6 +6,8 @@ langsmith
 langchain-community
 langchain-core
 langchain-openai
+langchain-aws
+boto3
 notebook
 langchain-tavily
 wikipedia

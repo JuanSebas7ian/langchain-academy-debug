@@ -3,3 +3,6 @@ langchain-core
 langchain-community
 langchain-openai
 trustcall
+langchain-aws
+boto3
+python-dotenv

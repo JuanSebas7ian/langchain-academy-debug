@@ -2,3 +2,6 @@ langgraph
 langchain-core
 langchain-community
 langchain-openai
+langchain-aws
+boto3
+python-dotenv
