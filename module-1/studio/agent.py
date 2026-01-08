@@ -105,7 +105,7 @@ llm_nova_pro = ChatBedrockConverse(
 )
 
 # Seleccionar el LLM activo
-llm = llm_scout
+llm = llm_nova_micro
 llm_with_tools = llm.bind_tools(tools)
 
 # System message
