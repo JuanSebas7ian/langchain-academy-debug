@@ -1,16 +1,37 @@
+# LangGraph Core
 langgraph
 langgraph-prebuilt
 langgraph-sdk
 langgraph-checkpoint-sqlite
-langsmith
+langgraph-cli[inmem]
+
+# LangChain
+langchain
 langchain-community
 langchain-core
 langchain-openai
 langchain-aws
-boto3
-notebook
 langchain-tavily
+
+# LangSmith (Observability)
+langsmith
+
+# AWS
+boto3
+
+# Token counting (required for trim_messages with non-native models)
+transformers
+tiktoken
+
+# Development
+notebook
+ipykernel
+
+# Tools & Integrations
 wikipedia
 trustcall
-langgraph-cli[inmem]
 
+# Utilities
+python-dotenv
+pydantic
+pydantic-settings
