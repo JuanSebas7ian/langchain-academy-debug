@@ -1,4 +1,5 @@
 from langchain_core.messages import SystemMessage
+from botocore.config import Config
 # from langchain_openai import ChatOpenAI
 
 from langgraph.graph import START, StateGraph, MessagesState
@@ -41,31 +42,39 @@ load_dotenv('/home/juansebas7ian/langchain-academy/.env')
 
 from langchain_aws import ChatBedrockConverse
 
+# Reusable retry configuration to handle ThrottlingExceptions
+retry_config = Config(
+    retries={
+        "max_attempts": 10,
+        "mode": "adaptive",
+    }
+)
+
 # 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo)
 # Ideal para agentes que necesitan planificar pasos lógicos.
 llm_deepseek_r1 = ChatBedrockConverse(
     model="us.deepseek.r1-v1:0",
-    region_name="us-east-1",
     temperature=0.6,
     max_tokens=8192,
     top_p=0.95,
+    region_name="us-east-1",
 )
 
 # 2. CONFIGURACIÓN PARA DEEPSEEK-V3
 llm_deepseek_v3 = ChatBedrockConverse(
     model="us.deepseek.v3-v1:0",
-    region_name="us-east-1",
     temperature=0.7,
     max_tokens=4096,
+    region_name="us-east-1",
 )
 
 # 3. CONFIGURACIÓN PARA LLAMA 4 SCOUT
 llm_scout = ChatBedrockConverse(
     model="us.meta.llama4-scout-17b-instruct-v1:0",
-    region_name="us-east-1",
     temperature=0.5,
     max_tokens=2048,
     top_p=0.9,
+    region_name="us-east-1",
 )
 
 # 4. CONFIGURACIÓN PARA LLAMA 4 MAVERICK
@@ -80,10 +89,10 @@ llm_maverick = ChatBedrockConverse(
 # 5. CONFIGURACIÓN PARA AMAZON NOVA LITE
 llm_nova_lite = ChatBedrockConverse(
     model="amazon.nova-lite-v1:0",
-    region_name="us-east-1",
     temperature=0.5,
     max_tokens=2048,
     top_p=0.9,
+    region_name="us-east-1",
 )
 
 # 6. CONFIGURACIÓN PARA AMAZON NOVA MICRO
@@ -105,7 +114,7 @@ llm_nova_pro = ChatBedrockConverse(
 )
 
 # Seleccionar el LLM activo
-llm = llm_scout
+llm = llm_nova_lite
 llm_with_tools = llm.bind_tools(tools)
 
 # System message

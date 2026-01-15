@@ -1,15 +1,16 @@
 from typing import Literal
-from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, RemoveMessage
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, START, END
 
 # We will use this model for both the conversation and the summarization
 from langchain_aws import ChatBedrockConverse
 model = ChatBedrockConverse(
-    model="amazon.nova-micro-v1:0",
+    model="us.meta.llama4-scout-17b-instruct-v1:0",
     region_name="us-east-1",
     temperature=0.5,
     max_tokens=2048,
+    top_p=0.9,
 )
 
 # State class to store messages and summary
@@ -34,7 +35,30 @@ def call_model(state: State):
     else:
         messages = state["messages"]
     
-    response = model.invoke(messages)
+    # Ensure messages start with a HumanMessage (required by Bedrock Converse API)
+    # Filter out any leading AIMessages before the first HumanMessage
+    filtered_messages = []
+    found_human = False
+    for msg in messages:
+        if isinstance(msg, SystemMessage):
+            filtered_messages.append(msg)
+        elif isinstance(msg, HumanMessage):
+            found_human = True
+            filtered_messages.append(msg)
+        elif found_human:
+            # Only include AIMessages after we've seen a HumanMessage
+            filtered_messages.append(msg)
+    
+    # Ensure the last message is a HumanMessage (also required by Llama models on Bedrock)
+    # Remove trailing AIMessages
+    while filtered_messages and isinstance(filtered_messages[-1], AIMessage):
+        filtered_messages.pop()
+    
+    # If no messages left or no HumanMessage, add a placeholder
+    if not filtered_messages or not any(isinstance(m, HumanMessage) for m in filtered_messages):
+        filtered_messages = [HumanMessage(content="Hello")]
+    
+    response = model.invoke(filtered_messages)
     return {"messages": response}
 
 # Determine whether to end or summarize the conversation
@@ -71,10 +95,32 @@ def summarize_conversation(state: State):
 
     # Add prompt to our history
     messages = state["messages"] + [HumanMessage(content=summary_message)]
-    response = model.invoke(messages)
     
-    # Delete all but the 2 most recent messages and add our summary to the state 
-    delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-2]]
+    # Ensure messages start with a HumanMessage (required by Bedrock Converse API)
+    filtered_messages = []
+    found_human = False
+    for msg in messages:
+        if isinstance(msg, SystemMessage):
+            filtered_messages.append(msg)
+        elif isinstance(msg, HumanMessage):
+            found_human = True
+            filtered_messages.append(msg)
+        elif found_human:
+            filtered_messages.append(msg)
+    
+    # Ensure the last message is a HumanMessage (required by Llama models on Bedrock)
+    while filtered_messages and isinstance(filtered_messages[-1], AIMessage):
+        filtered_messages.pop()
+    
+    # If no HumanMessage, add the summary request as the only message
+    if not filtered_messages or not any(isinstance(m, HumanMessage) for m in filtered_messages):
+        filtered_messages = [HumanMessage(content=summary_message)]
+    
+    response = model.invoke(filtered_messages)
+    
+    # Delete all but the 3 most recent messages to ensure a HumanMessage is preserved
+    # (Bedrock Converse requires conversations to start with a user message)
+    delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-3]]
     return {"summary": response.content, "messages": delete_messages}
 
 # Define a new graph
