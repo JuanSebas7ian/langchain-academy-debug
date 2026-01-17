@@ -4,7 +4,7 @@ from typing_extensions import TypedDict
 
 from pydantic import BaseModel
 
-from langchain_openai import ChatOpenAI 
+from langchain_aws import ChatBedrockConverse
 
 from langgraph.constants import Send
 from langgraph.graph import END, StateGraph, START
@@ -15,7 +15,12 @@ joke_prompt = """Generate a joke about {subject}"""
 best_joke_prompt = """Below are a bunch of jokes about {topic}. Select the best one! Return the ID of the best one, starting 0 as the ID for the first joke. Jokes: \n\n  {jokes}"""
 
 # LLM
-model = ChatOpenAI(model="gpt-4o", temperature=0) 
+model = ChatBedrockConverse(
+    model="us.meta.llama4-scout-17b-instruct-v1:0",
+    temperature=0,
+    max_tokens=2048,
+    region_name="us-east-1"
+) 
 
 # Define the state
 class Subjects(BaseModel):
