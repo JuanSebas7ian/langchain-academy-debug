@@ -1,12 +1,81 @@
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables.config import RunnableConfig
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
+from langchain_aws import ChatBedrockConverse
+from dotenv import load_dotenv
+
+load_dotenv('/home/juansebas7ian/langchain-academy/.env')
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.store.base import BaseStore
 import configuration
 
 # Initialize the LLM
-model = ChatOpenAI(model="gpt-4o", temperature=0) 
+# model = ChatOpenAI(model="gpt-4o", temperature=0)
+
+# 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo)
+llm_deepseek_r1 = ChatBedrockConverse(
+    model="us.deepseek.r1-v1:0",
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95,
+)
+
+# 2. CONFIGURACIÓN PARA DEEPSEEK-V3
+llm_deepseek_v3 = ChatBedrockConverse(
+    model="us.deepseek.v3-v1:0",
+    region_name="us-east-1",
+    temperature=0.7,
+    max_tokens=4096,
+)
+
+# 3. CONFIGURACIÓN PARA LLAMA 4 SCOUT
+llm_scout = ChatBedrockConverse(
+    model="us.meta.llama4-scout-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 4. CONFIGURACIÓN PARA LLAMA 4 MAVERICK
+llm_maverick = ChatBedrockConverse(
+    model="us.meta.llama4-maverick-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 5. CONFIGURACIÓN PARA AMAZON NOVA LITE
+llm_nova_lite = ChatBedrockConverse(
+    model="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 6. CONFIGURACIÓN PARA AMAZON NOVA MICRO
+llm_nova_micro = ChatBedrockConverse(
+    model="amazon.nova-micro-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 7. CONFIGURACIÓN PARA AMAZON NOVA PRO
+llm_nova_pro = ChatBedrockConverse(
+    model="amazon.nova-pro-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# Seleccionar el LLM activo
+model = llm_nova_lite 
 
 # Chatbot instruction
 MODEL_SYSTEM_MESSAGE = """You are a helpful assistant with memory that provides information about the user. 

@@ -11,7 +11,11 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import merge_message_runs
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
+from langchain_aws import ChatBedrockConverse
+from dotenv import load_dotenv
+
+load_dotenv('/home/juansebas7ian/langchain-academy/.env')
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, MessagesState, START, END
@@ -125,7 +129,72 @@ class UpdateMemory(TypedDict):
     update_type: Literal['user', 'todo', 'instructions']
 
 # Initialize the model
-model = ChatOpenAI(model="gpt-4o", temperature=0)
+# model = ChatOpenAI(model="gpt-4o", temperature=0)
+
+# 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo)
+llm_deepseek_r1 = ChatBedrockConverse(
+    model="us.deepseek.r1-v1:0",
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95,
+)
+
+# 2. CONFIGURACIÓN PARA DEEPSEEK-V3
+llm_deepseek_v3 = ChatBedrockConverse(
+    model="us.deepseek.v3-v1:0",
+    region_name="us-east-1",
+    temperature=0.7,
+    max_tokens=4096,
+)
+
+# 3. CONFIGURACIÓN PARA LLAMA 4 SCOUT
+llm_scout = ChatBedrockConverse(
+    model="us.meta.llama4-scout-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 4. CONFIGURACIÓN PARA LLAMA 4 MAVERICK
+llm_maverick = ChatBedrockConverse(
+    model="us.meta.llama4-maverick-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 5. CONFIGURACIÓN PARA AMAZON NOVA LITE
+llm_nova_lite = ChatBedrockConverse(
+    model="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 6. CONFIGURACIÓN PARA AMAZON NOVA MICRO
+llm_nova_micro = ChatBedrockConverse(
+    model="amazon.nova-micro-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# 7. CONFIGURACIÓN PARA AMAZON NOVA PRO
+llm_nova_pro = ChatBedrockConverse(
+    model="amazon.nova-pro-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9,
+)
+
+# Seleccionar el LLM activo
+model = llm_nova_lite
 
 ## Create the Trustcall extractors for updating the user profile and ToDo list
 profile_extractor = create_extractor(
