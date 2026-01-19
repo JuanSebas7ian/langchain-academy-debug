@@ -84,7 +84,7 @@ llm_nova_pro = ChatBedrockConverse(
 )
 
 # Seleccionar el LLM activo
-llm = llm_scout
+llm = llm_nova_lite
 
 ### Schema 
 
@@ -174,7 +174,7 @@ def create_analysts(state: GenerateAnalystsState):
     analysts = structured_llm.invoke([SystemMessage(content=system_message)]+[HumanMessage(content="Generate the set of analysts.")])
     
     # Write the list of analysis to state
-    return {"analysts": analysts.analysts}
+    return {"analysts": analysts.analysts, "human_analyst_feedback": None}
 
 def human_feedback(state: GenerateAnalystsState):
     """ No-op node that should be interrupted on """
@@ -209,7 +209,15 @@ def generate_question(state: InterviewState):
 
     # Generate question 
     system_message = question_instructions.format(goals=analyst.persona)
-    question = llm.invoke([SystemMessage(content=system_message)]+messages)
+    # BEDROCK COMPATIBILITY FIX:
+    # Ensure conversation ends with User message.
+    # On first turn, messages[-1] is already Human (from initiate), so we skip appending to avoid [Human, Human].
+    if messages and isinstance(messages[-1], HumanMessage):
+        input_messages = messages
+    else:
+        input_messages = messages + [HumanMessage(content="Generate a question based on the above.")]
+
+    question = llm.invoke([SystemMessage(content=system_message)]+input_messages)
         
     # Write messages to state
     return {"messages": [question]}
@@ -234,11 +242,17 @@ def search_web(state: InterviewState):
 
     # Search query
     structured_llm = llm.with_structured_output(SearchQuery)
-    search_query = structured_llm.invoke([search_instructions]+state['messages'])
+    search_query = structured_llm.invoke([search_instructions]+state['messages']+[HumanMessage(content="Generate a search query based on the above conversation.")])
     
     # Search
     data = tavily_search.invoke({"query": search_query.search_query})
-    search_docs = data.get("results", data)
+    
+    # Robust handling for Tavily response (can be dict or str)
+    if isinstance(data, dict):
+        search_docs = data.get("results", data)
+    else:
+        # Fallback if data is a string (e.g., error or raw content)
+        search_docs = [{"url": "unknown", "content": str(data)}]
 
      # Format
     formatted_search_docs = "\n\n---\n\n".join(
@@ -256,7 +270,7 @@ def search_wikipedia(state: InterviewState):
 
     # Search query
     structured_llm = llm.with_structured_output(SearchQuery)
-    search_query = structured_llm.invoke([search_instructions]+state['messages'])
+    search_query = structured_llm.invoke([search_instructions]+state['messages']+[HumanMessage(content="Generate a search query based on the above conversation.")])
     
     # Search
     search_docs = WikipediaLoader(query=search_query.search_query, 
@@ -312,7 +326,7 @@ def generate_answer(state: InterviewState):
 
     # Answer question
     system_message = answer_instructions.format(goals=analyst.persona, context=context)
-    answer = llm.invoke([SystemMessage(content=system_message)]+messages)
+    answer = llm.invoke([SystemMessage(content=system_message)]+messages+[HumanMessage(content="Answer the above question.")])
             
     # Name the message as coming from the expert
     answer.name = "expert"
@@ -451,9 +465,10 @@ def initiate_all_interviews(state: ResearchGraphState):
     """ Conditional edge to initiate all interviews via Send() API or return to create_analysts """    
 
     # Check if human feedback
-    human_analyst_feedback=state.get('human_analyst_feedback','approve')
-    if human_analyst_feedback.lower() != 'approve':
-        # Return to create_analysts
+    human_analyst_feedback=state.get('human_analyst_feedback')
+    
+    # If there is feedback and it is NOT "approve", return to create_analysts
+    if human_analyst_feedback and human_analyst_feedback.lower() != 'approve':
         return "create_analysts"
 
     # Otherwise kick off interviews in parallel via Send() API
@@ -579,6 +594,17 @@ def finalize_report(state: ResearchGraphState):
 
     # Save full final report
     content = state["content"]
+    introduction = state["introduction"]
+    conclusion = state["conclusion"]
+
+    # Handle case where LLM returns a list of content blocks
+    if isinstance(content, list):
+        content = "".join([str(c) for c in content])
+    if isinstance(introduction, list):
+        introduction = "".join([str(c) for c in introduction])
+    if isinstance(conclusion, list):
+        conclusion = "".join([str(c) for c in conclusion])
+        
     if content.startswith("## Insights"):
         content = content.strip("## Insights")
     if "## Sources" in content:
@@ -589,7 +615,7 @@ def finalize_report(state: ResearchGraphState):
     else:
         sources = None
 
-    final_report = state["introduction"] + "\n\n---\n\n" + content + "\n\n---\n\n" + state["conclusion"]
+    final_report = introduction + "\n\n---\n\n" + content + "\n\n---\n\n" + conclusion
     if sources is not None:
         final_report += "\n\n## Sources\n" + sources
     return {"final_report": final_report}
