@@ -157,7 +157,12 @@ def write_memory(state: MessagesState, config: RunnableConfig, store: BaseStore)
         
     # Format the memory in the system prompt
     system_msg = CREATE_MEMORY_INSTRUCTION.format(memory=existing_memory_content)
-    new_memory = model.invoke([SystemMessage(content=system_msg)]+state['messages'])
+    
+    # BEDROCK FIX: Append a HumanMessage to ensure the conversation ends with a user turn
+    from langchain_core.messages import HumanMessage
+    messages_for_model = [SystemMessage(content=system_msg)] + state['messages'] + [HumanMessage(content="Please update the memory based on the conversation above.")]
+    
+    new_memory = model.invoke(messages_for_model)
 
     # Overwrite the existing memory in the store 
     key = "user_memory"
