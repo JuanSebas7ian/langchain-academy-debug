@@ -166,9 +166,9 @@ llm_maverick = ChatBedrockConverse(
     top_p=0.9,
 )
 
-# 5. CONFIGURACIÓN PARA AMAZON NOVA LITE
+# 5. CONFIGURACIÓN PARA AMAZON NOVA LITE - US.AMAZON.NOVA-2-LITE-V1:0
 llm_nova_lite = ChatBedrockConverse(
-    model="amazon.nova-lite-v1:0",
+    model="us.amazon.nova-2-lite-v1:0",
     region_name="us-east-1",
     temperature=0.5,
     max_tokens=2048,
@@ -177,7 +177,7 @@ llm_nova_lite = ChatBedrockConverse(
 
 # 6. CONFIGURACIÓN PARA AMAZON NOVA MICRO
 llm_nova_micro = ChatBedrockConverse(
-    model="amazon.nova-micro-v1:0",
+    model="us.amazon.nova-micro-v1:0",
     region_name="us-east-1",
     temperature=0.5,
     max_tokens=2048,
@@ -302,7 +302,7 @@ def task_mAIstro(state: MessagesState, config: RunnableConfig, store: BaseStore)
     system_msg = MODEL_SYSTEM_MESSAGE.format(user_profile=user_profile, todo=todo, instructions=instructions)
 
     # Respond using memory as well as the chat history
-    response = model.bind_tools([UpdateMemory], parallel_tool_calls=False).invoke([SystemMessage(content=system_msg)]+state["messages"])
+    response = model.bind_tools([UpdateMemory]).invoke([SystemMessage(content=system_msg)]+state["messages"])
 
     return {"messages": [response]}
 
@@ -332,8 +332,13 @@ def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStor
     TRUSTCALL_INSTRUCTION_FORMATTED=TRUSTCALL_INSTRUCTION.format(time=datetime.now().isoformat())
     updated_messages=list(merge_message_runs(messages=[SystemMessage(content=TRUSTCALL_INSTRUCTION_FORMATTED)] + state["messages"][:-1]))
 
+    # Initialize Spy for monitoring (Added for Verbose Reporting)
+    spy = Spy()
+    # Attach Spy listener to extractor
+    profile_extractor_with_spy = profile_extractor.with_listeners(on_end=spy)
+
     # Invoke the extractor
-    result = profile_extractor.invoke({"messages": updated_messages, 
+    result = profile_extractor_with_spy.invoke({"messages": updated_messages, 
                                          "existing": existing_memories})
 
     # Save save the memories from Trustcall to the store
@@ -344,7 +349,9 @@ def update_profile(state: MessagesState, config: RunnableConfig, store: BaseStor
             )
     tool_calls = state['messages'][-1].tool_calls
     # Return tool message with update verification
-    return {"messages": [{"role": "tool", "content": "updated profile", "tool_call_id":tool_calls[0]['id']}]}
+    # Extract detailed changes using the spy
+    profile_update_msg = extract_tool_info(spy.called_tools, tool_name)
+    return {"messages": [{"role": "tool", "content": profile_update_msg, "tool_call_id":tool_calls[0]['id']}]}
 
 def update_todos(state: MessagesState, config: RunnableConfig, store: BaseStore):
 
