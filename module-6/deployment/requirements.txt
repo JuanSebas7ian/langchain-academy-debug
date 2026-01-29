@@ -1,3 +1,4 @@
+langgraph-cli[inmem]
 langgraph
 langchain-core
 langchain-community
