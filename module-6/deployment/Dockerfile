@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies if needed (e.g. for building packages)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -17,5 +17,5 @@ COPY . .
 # Expose the port the API runs on
 EXPOSE 8000
 
-# Command to run the LangGraph server using the CLI
-CMD ["langgraph", "up", "--host", "0.0.0.0", "--port", "8000"]
+# Command to run the FastAPI server
+CMD ["python", "server.py"]

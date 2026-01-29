@@ -7,3 +7,5 @@ trustcall
 langchain-aws
 boto3
 python-dotenv
+fastapi
+uvicorn[standard]
