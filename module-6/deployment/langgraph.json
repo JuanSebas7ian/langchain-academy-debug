@@ -3,6 +3,6 @@
     "."
   ],
   "graphs": {
-    "agent": "./task_maistro.py:graph"
+    "task_maistro": "./task_maistro.py:graph"
   }
 }
