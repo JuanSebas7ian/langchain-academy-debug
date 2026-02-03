@@ -1,21 +1,16 @@
-FROM python:3.11-slim
+# Usamos la imagen oficial de LangGraph como base para tener los endpoints de hilos y Studio
+FROM langchain/langgraph-api:3.11
 
-WORKDIR /app
+# Directorio donde el servidor espera encontrar el código
+WORKDIR /deps/project_code
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install
+# Copiamos el archivo de requerimientos primero para cachear la instalación
 COPY requirements.txt .
+
+# Instalamos las dependencias adicionales del proyecto (trustcall, bedrock, etc.)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copiamos el resto del código
 COPY . .
 
-# Expose the port the API runs on
-EXPOSE 8000
-
-# Command to run the FastAPI server
-CMD ["python", "server.py"]
+# El servidor de la imagen base ya expone el puerto 8000 y define el CMD

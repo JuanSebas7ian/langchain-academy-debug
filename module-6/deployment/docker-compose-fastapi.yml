@@ -1,0 +1,91 @@
+# Definición de los servicios que componen la infraestructura de la aplicación (Versión FastAPI Custom)
+services:
+    # 1. Servicio de Redis: utilizado para el manejo de memoria a corto plazo del agente
+    langgraph-redis:
+        # Imagen docker oficial de Redis versión 6
+        image: redis:6
+        # Configuración para verificar que el servicio esté listo
+        healthcheck:
+            # Comando para verificar la conexión con redis
+            test: redis-cli ping
+            # Realizar la prueba cada 5 segundos
+            interval: 5s
+            # Tiempo máximo de espera por prueba de 1 segundo
+            timeout: 1s
+            # Declarar como fallido después de 5 intentos fallidos
+            retries: 5
+        # Mapeo de puertos: el host accede a Redis por el puerto 6379
+        ports:
+            - "6379:6379"
+
+    # 2. Servicio de MongoDB: utilizado para la persistencia de datos (Checkpointing de largo plazo)
+    langgraph-mongo:
+        # Imagen docker oficial más reciente de MongoDB
+        image: mongo:latest
+        # El host accede a Mongo por el puerto estándar 27017
+        ports:
+            - "27017:27017"
+        # Variables de configuración para inicializar la base de datos con seguridad
+        environment:
+            # Nombre de usuario maestro (obtenido del archivo .env)
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+            # Contraseña del usuario maestro (obtenida del archivo .env)
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+        # Mapeo de almacenamiento para no perder los datos al apagar el contenedor
+        volumes:
+            # Se vincula el volumen 'mongo-data' con la ruta interna de datos de Mongo
+            - mongo-data:/data/db
+        # Verificación de disponibilidad del servicio
+        healthcheck:
+            # Ejecuta un comando interno para asegurar que la BD responde a comandos
+            test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+            # Reintenta cada 10 segundos
+            interval: 10s
+            # Espera máxima de 5 segundos por respuesta
+            timeout: 5s
+            # Tolera 5 fallos antes de marcar como servicio caído
+            retries: 5
+            # Espera 5 segundos antes de empezar a monitorear la salud (periodo de arranque)
+            start_period: 5s
+
+    # 3. Servicio de la API (nuestra aplicación Python con FastAPI y LangGraph)
+    langgraph-api:
+        # Configuración para construir la imagen desde el código local
+        build:
+            # Directorio donde se encuentran los archivos (carpeta actual)
+            context: .
+            # Nombre del archivo con las instrucciones de construcción
+            dockerfile: Dockerfile
+        # Acceso externo: mapea el puerto 8123 del host al 8000 interno de la API
+        ports:
+            - "8123:8000"
+        # Define el orden de encendido: la API espera a los otros servicios
+        depends_on:
+            # No inicia la API hasta que Redis esté marcado como 'saludable' (healthcheck exitoso)
+            langgraph-redis:
+                condition: service_healthy
+            # No inicia la API hasta que MongoDB esté marcado como 'saludable'
+            langgraph-mongo:
+                condition: service_healthy
+        # Inyección de variables de entorno para que el código Python sepa cómo conectarse
+        environment:
+            # URL de conexión al contenedor de Redis (se usa el nombre del servicio como host)
+            REDIS_URI: redis://langgraph-redis:6379
+            # String de conexión a MongoDB (usando variables del .env)
+            MONGODB_URI: mongodb+srv://${MONGO_USER}:${MONGO_PASSWORD}@cluster0.tqjqzev.mongodb.net/?appName=Cluster0
+            # Credenciales de AWS necesarias para ejecutar modelos en Bedrock
+            AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+            AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+            AWS_DEFAULT_REGION: us-east-1
+            # Configuración para el rastreo y depuración con LangSmith
+            LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+            LANGSMITH_TRACING: "true"
+            LANGSMITH_ENDPOINT: https://api.smith.langchain.com
+            LANGSMITH_PROJECT: langchain-academy
+            
+# Declaración de volúmenes persistentes que sobreviven a la vida de los contenedores
+volumes:
+    # Volumen compartido para los datos de MongoDB
+    mongo-data:
+        # Usa el driver por defecto de Docker para almacenamiento local
+        driver: local

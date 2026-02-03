@@ -1,0 +1,109 @@
+# Definición de la infraestructura usando DynamoDB Local para memoria a corto plazo
+services:
+    # 1. SERVICIO: DynamoDB Local (Contenedor que emula Amazon DynamoDB localmente)
+    langgraph-dynamodb:
+        # Usa la imagen oficial proporcionada por Amazon
+        image: amazon/dynamodb-local:latest
+        # Nombre personalizado para identificar el contenedor fácilmente
+        container_name: langgraph-dynamodb
+        # Parámetros para ejecutar el JAR de DynamoDB:
+        # -sharedDb: Usa un único archivo de base de datos para todas las regiones/credenciales
+        # -dbPath: Ruta donde se guardará físicamente el archivo de la base de datos
+        command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+        # Mapeo de puertos: puerto 8000 del host expone el puerto 8000 del contenedor
+        ports:
+            - "8000:8000"
+        # Persistencia: guarda los datos en un volumen de Docker llamado 'dynamodb-data'
+        volumes:
+            - dynamodb-data:/home/dynamodblocal/data
+        # Define el directorio de ejecución dentro del contenedor
+        working_dir: /home/dynamodblocal
+        # Ejecuta como root para evitar problemas de permisos al escribir en el volumen montado
+        user: root
+
+    # 2. SERVICIO: MongoDB (Utilizado para la memoria a largo plazo/historial persistente)
+    langgraph-mongo:
+        # Usa la imagen oficial más reciente de MongoDB
+        image: mongo:latest
+        # Mapeo de puertos: permite conexiones externas por el puerto 27017
+        ports:
+            - "27017:27017"
+        # Variables de entorno para configurar las credenciales base (definidas en el .env)
+        environment:
+            # Usuario administrador inicial
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+            # Contraseña del administrador
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+        # Persistencia: guarda los datos de MongoDB en el volumen 'mongo-data'
+        volumes:
+            - mongo-data:/data/db
+        # Verificación de que el servicio esté arriba y funcionando
+        healthcheck:
+            # Comando que realiza un ping a la base de datos mediante mongosh
+            test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+            # Ejecuta la comprobación cada 10 segundos
+            interval: 10s
+            # Espera máxima de 5 segundos por intento
+            timeout: 5s
+            # Marca como fallido tras 5 errores consecutivos
+            retries: 5
+            # Tiempo de gracia inicial de 5 segundos para que Mongo arranque
+            start_period: 5s
+
+    # 3. SERVICIO: Nuestra API (Aplicación LangGraph encapsulada en FastAPI)
+    langgraph-api:
+        # Define cómo construir la imagen personalizada de la aplicación
+        build:
+            # Contexto de construcción: el directorio actual
+            context: .
+            # Archivo de instrucciones: el Dockerfile que creamos
+            dockerfile: Dockerfile
+        # Expone la aplicación en el puerto 8123 (acceso desde el navegador o curl)
+        ports:
+            - "8123:8000"
+        # Define dependencias de inicio (la API espera a las bases de datos)
+        depends_on:
+            # Espera a que DynamoDB esté iniciado
+            langgraph-dynamodb:
+                condition: service_started
+            # Espera a que MongoDB pase su prueba de salud (healthcheck)
+            langgraph-mongo:
+                condition: service_healthy
+        # Configuración del entorno de la aplicación (Inyección de secretos y URLs)
+        environment:
+            # --- Configuración DynamoDB (Memoria Corta) ---
+            # Define la URL del servicio DynamoDB dentro de la red de Docker
+            DYNAMODB_ENDPOINT_URL: "http://langgraph-dynamodb:8000"
+            # Variable para indicar al código Python que debe usar el backend de DynamoDB
+            MEMORY_BACKEND: "dynamodb"
+            
+            # --- Configuración MongoDB (Memoria Larga) ---
+            # URL de conexión a la base de datos local de MongoDB (dentro de Docker)
+            MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@langgraph-mongo:27017
+            
+            # --- Credenciales AWS (Requeridas para Bedrock y DynamoDB) ---
+            # Clave de acceso de AWS (necesaria incluso para DynamoDB Local)
+            AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+            # Clave secreta de AWS
+            AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+            # Región de AWS por defecto
+            AWS_DEFAULT_REGION: us-east-1
+            
+            # --- Monitoreo con Langsmith ---
+            # API Key para autenticarse con LangSmith
+            LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+            # Habilita el rastreo/tracing de ejecuciones
+            LANGSMITH_TRACING: "true"
+            # Endpoint de la API de LangSmith
+            LANGSMITH_ENDPOINT: https://api.smith.langchain.com
+            # Nombre del proyecto en el tablero de LangSmith
+            LANGSMITH_PROJECT: langchain-academy
+
+# Declaración de los volúmenes para que los datos no se borren al reiniciar Docker
+volumes:
+    # Volumen para almacenar los archivos de datos de MongoDB
+    mongo-data:
+        driver: local
+    # Volumen para almacenar los archivos de datos de DynamoDB Local
+    dynamodb-data:
+        driver: local

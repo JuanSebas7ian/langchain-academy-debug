@@ -1,11 +1,11 @@
-langgraph-cli[inmem]
-langgraph
-langchain-core
-langchain-community
-langchain-openai
-trustcall
-langchain-aws
-boto3
-python-dotenv
-fastapi
-uvicorn[standard]
+langgraph-cli[inmem] # CLI de LangGraph con soporte para base de datos en memoria (para desarrollo)
+langgraph # Librería principal para construir agentes con estados
+langchain-core # Componentes base y abstracciones de LangChain
+langchain-community # Integraciones de la comunidad (herramientas de terceros)
+langchain-openai # Integración específica para modelos de OpenAI
+trustcall # Librería para extracción de información estructurada confiable
+langchain-aws # Integración de LangChain con servicios de AWS (Bedrock)
+boto3 # SDK oficial de AWS para Python (necesario para DynamoDB y Bedrock)
+python-dotenv # Carga variables de entorno desde un archivo .env
+fastapi # Framework web para crear la API del servidor
+uvicorn[standard] # Servidor ASGI de alto rendimiento para ejecutar FastAPI
